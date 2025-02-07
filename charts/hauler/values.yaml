@@ -9,7 +9,7 @@ hauler:
 
   image:
     repository: hauler/hauler
-    tag: 1.1.1
+    tag: 1.2.0
   imagePullPolicy: Always
 
   initContainers:
@@ -25,15 +25,19 @@ hauler:
       # storageClass: longhorn # optional... will use default storage class
       storageRequest: 48Gi # recommended size of 3x the artifact(s)
 
+  debug:
+    enabled: true
+    image:
+      repository: hauler/hauler-debug
+      tag: 1.2.0
+    imagePullPolicy: Always
+    command: ["/bin/sh"]
+    args: ["-c", "sleep infinity"]
+
 # Helm Chart Values for the Hauler Jobs
 # Docs: https://rancherfederal.github.io/hauler-docs/docs/introduction/quickstart
 
 haulerJobs:
-  image:
-    repository: hauler/hauler-debug
-    tag: 1.1.1
-  imagePullPolicy: Always
-
   hauls:
     enabled: true
     artifacts:
