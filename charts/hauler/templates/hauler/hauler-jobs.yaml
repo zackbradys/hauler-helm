@@ -1,8 +1,8 @@
-{{- if .Values.haulerJobs.hauls.enabled }}
+{{- if and (or .Values.haulerJobs.remote .Values.haulerJobs.local) (or (and .Values.haulerJobs.local .Values.haulerJobs.local.store) (and .Values.haulerJobs.remote .Values.haulerJobs.remote.hauls (gt (len .Values.haulerJobs.remote.hauls) 0)) (and .Values.haulerJobs.remote .Values.haulerJobs.remote.manifests (gt (len .Values.haulerJobs.remote.manifests) 0))  (and .Values.haulerJobs.local .Values.haulerJobs.local.hauls (gt (len .Values.haulerJobs.local.hauls) 0)) (and .Values.haulerJobs.local .Values.haulerJobs.local.manifests (gt (len .Values.haulerJobs.local.manifests) 0))  ) }}
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: hauler-hauls-job
+  name: hauler-loader
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "hauler.labels" . | nindent 4 }}
@@ -16,69 +16,99 @@ metadata:
 spec:
   template:
     spec:
-      containers:
-        - name: hauler-load-hauls
-          image: {{ .Values.hauler.image.repository }}:{{ .Values.hauler.image.tag }}
-          imagePullPolicy: {{ .Values.hauler.imagePullPolicy }}
+      {{- if or (and .Values.haulerJobs.local .Values.haulerJobs.local.store) (and .Values.haulerJobs.local .Values.haulerJobs.local.hauls (gt (len .Values.haulerJobs.local.hauls) 0)) (and .Values.haulerJobs.local .Values.haulerJobs.local.manifests (gt (len .Values.haulerJobs.local.manifests) 0)) }}
+      initContainers:
+        - name: hauler-fetch
+          image: {{ .Values.haulerJobs.image.repository }}:{{ .Values.haulerJobs.image.tag }}
+          imagePullPolicy: {{ .Values.haulerJobs.imagePullPolicy }}
+          command: ["/bin/sh", "-c"]
           args:
-            - "store"
-            - "load"
-            - "--filename"
-            {{- range .Values.haulerJobs.hauls.artifacts }}
-            - "{{ .path }}"
-            {{- end }}
+            - |
+              {{- if and .Values.haulerJobs.local .Values.haulerJobs.local.store }}
+              cp -av /local-store/* /store/   &&
+              chown -Rv 1001:1001 /store &&
+              {{- end }}
+              {{- if and .Values.haulerJobs.local .Values.haulerJobs.local.hauls }}
+              {{- range $index, $haul := .Values.haulerJobs.local.hauls }}
+              mkdir -p /hauls/local-haul-{{ $index }}/ &&
+              cp -v /tmp/local-haul-{{ $index }}/{{ $haul.name }} /hauls/local-haul-{{ $index }}/ &&
+              {{- end}}
+              {{- end}}
+              {{- if and .Values.haulerJobs.local .Values.haulerJobs.local.manifests }}
+              {{- range $index, $manifest := .Values.haulerJobs.local.manifests }}
+              mkdir -p /manifests/local-manifest-{{ $index }}/ &&
+              cp -v /tmp/local-manifest-{{ $index }}/{{ $manifest.name }} /manifests/local-manifest-{{ $index }}/ &&
+              {{- end}}
+              {{- end}}
+              echo hauler fetch completed
           volumeMounts:
-            - name: hauler-data
+            {{- if or (and .Values.haulerJobs.remote .Values.haulerJobs.remote.hauls (gt (len .Values.haulerJobs.remote.hauls) 0)) (and .Values.haulerJobs.local .Values.haulerJobs.local.hauls (gt (len .Values.haulerJobs.local.hauls) 0)) }}
+            - name: haul-data
               mountPath: /hauls
-            - name: hauler-data
-              mountPath: /store
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
-            runAsNonRoot: true
-            runAsUser: 1001
-            seccompProfile:
-              type: RuntimeDefault
-      restartPolicy: OnFailure
-      volumes:
-        - name: hauler-data
-          persistentVolumeClaim:
-            claimName: hauler-data
-{{- end }}
----
-{{- if .Values.haulerJobs.manifests.enabled }}
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: hauler-manifests-job
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "hauler.labels" . | nindent 4 }}
-    {{- with .Values.hauler.labels -}}
-{{ toYaml . | nindent 4 }}
-    {{- end }}
-  annotations:
-    {{- with .Values.hauler.annotations -}}
-{{ toYaml . | nindent 4 }}
-    {{- end }}
-spec:
-  template:
-    spec:
-      containers:
-        - name: hauler-load-manifests
-          image: {{ .Values.hauler.image.repository }}:{{ .Values.hauler.image.tag }}
-          imagePullPolicy: {{ .Values.hauler.imagePullPolicy }}
-          args:
-            {{- range .Values.haulerJobs.manifests.artifacts }}
-            - "store"
-            - "sync"
-            - "--filename"
-            - "{{ .path }}"
             {{- end }}
-          volumeMounts:
-            - name: hauler-data
+            {{- if or (and .Values.haulerJobs.remote .Values.haulerJobs.remote.manifests (gt (len .Values.haulerJobs.remote.manifests) 0)) (and .Values.haulerJobs.local .Values.haulerJobs.local.manifests (gt (len .Values.haulerJobs.local.manifests) 0)) }}
+            - name: manifest-data
               mountPath: /manifests
+            {{- end }}
+            {{- if and .Values.haulerJobs.local .Values.haulerJobs.local.hauls (gt (len .Values.haulerJobs.local.hauls) 0) }}
+            {{- range $index, $haul := .Values.haulerJobs.local.hauls }}
+            - name: local-haul-{{ $index }}
+              mountPath: /tmp/local-haul-{{ $index }}
+            {{- end }}
+            {{- end }}
+            {{- if and .Values.haulerJobs.local .Values.haulerJobs.local.manifests (gt (len .Values.haulerJobs.local.manifests) 0) }}
+            {{- range $index, $manifest := .Values.haulerJobs.local.manifests }}
+            - name: local-manifest-{{ $index }}
+              mountPath: /tmp/local-manifest-{{ $index }}
+            {{- end }}
+            {{- end }}
+            {{- if and .Values.haulerJobs.local .Values.haulerJobs.local.store }}
+            - name: store-data
+              mountPath: /local-store
+            {{- end }}
+            - name: hauler-data
+              mountPath: /store
+          securityContext:
+            runAsUser: 0
+      {{- end }}
+      containers:
+        - name: hauler-load
+          image: {{ .Values.haulerJobs.image.repository }}:{{ .Values.haulerJobs.image.tag }}
+          imagePullPolicy: {{ .Values.hauler.imagePullPolicy }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+            {{- if or (and .Values.haulerJobs.remote .Values.haulerJobs.remote.manifests (gt (len .Values.haulerJobs.remote.manifests) 0)) (and .Values.haulerJobs.local .Values.haulerJobs.local.manifests (gt (len .Values.haulerJobs.local.manifests) 0)) }}
+            {{- range .Values.haulerJobs.remote.manifests }}
+              hauler store sync --filename {{ .path }} &&
+            {{- end }}
+            {{- range $index, $manifest := .Values.haulerJobs.local.manifests }}
+              hauler store sync --filename /manifests/local-manifest-{{ $index }}/{{ $manifest.name }} &&
+            {{- end }}
+            {{- end }}
+            {{- if or (and .Values.haulerJobs.remote .Values.haulerJobs.remote.hauls (gt (len .Values.haulerJobs.remote.hauls) 0)) (and .Values.haulerJobs.local .Values.haulerJobs.local.hauls (gt (len .Values.haulerJobs.local.hauls) 0)) }}
+            {{- range .Values.haulerJobs.remote.hauls }}
+              hauler store load --filename /hauls/{{ .name }} &&
+            {{- end }}
+            {{- range $index, $haul := .Values.haulerJobs.local.hauls }}
+              hauler store load --filename /hauls/local-haul-{{ $index }}/{{ $haul.name }} &&
+            {{- end }}
+            {{- end }}
+              echo hauler load completed &&
+              hauler store info
+          volumeMounts:
+            {{- if or (and .Values.haulerJobs.remote .Values.haulerJobs.remote.hauls (gt (len .Values.haulerJobs.remote.hauls) 0)) (and .Values.haulerJobs.local .Values.haulerJobs.local.hauls (gt (len .Values.haulerJobs.local.hauls) 0)) }}
+            - name: haul-data
+              mountPath: /hauls
+            {{- end }}
+            {{- if or (and .Values.haulerJobs.remote .Values.haulerJobs.remote.manifests (gt (len .Values.haulerJobs.remote.manifests) 0)) (and .Values.haulerJobs.local .Values.haulerJobs.local.manifests (gt (len .Values.haulerJobs.local.manifests) 0)) }}
+            - name: manifest-data
+              mountPath: /manifests
+            {{- end }}
+            {{- if and .Values.haulerJobs.local .Values.haulerJobs.local.store }}
+            - name: store-data
+              mountPath: /local-store
+            {{- end }}
             - name: hauler-data
               mountPath: /store
           securityContext:
@@ -91,6 +121,33 @@ spec:
               type: RuntimeDefault
       restartPolicy: OnFailure
       volumes:
+        {{- if or (and .Values.haulerJobs.remote .Values.haulerJobs.remote.hauls (gt (len .Values.haulerJobs.remote.hauls) 0)) (and .Values.haulerJobs.local .Values.haulerJobs.local.hauls (gt (len .Values.haulerJobs.local.hauls) 0)) }}
+        - name: haul-data
+          emptyDir:
+        {{- end }}
+        {{- if (and .Values.haulerJobs.local .Values.haulerJobs.local.hauls (gt (len .Values.haulerJobs.local.hauls) 0)) }}
+        {{- range $index, $haul := .Values.haulerJobs.local.hauls }}
+        - name: local-haul-{{ $index }}
+          hostPath:
+            path: {{ $haul.path }}
+        {{- end }}
+        {{- end }}
+        {{- if or (and .Values.haulerJobs.remote .Values.haulerJobs.remote.manifests (gt (len .Values.haulerJobs.remote.manifests) 0)) (and .Values.haulerJobs.local .Values.haulerJobs.local.manifests (gt (len .Values.haulerJobs.local.manifests) 0)) }}
+        - name: manifest-data
+          emptyDir:
+        {{- end }}
+        {{- if (and .Values.haulerJobs.local .Values.haulerJobs.local.manifests (gt (len .Values.haulerJobs.local.manifests) 0)) }}
+        {{- range $index, $manifest := .Values.haulerJobs.local.manifests }}
+        - name: local-manifest-{{ $index }}
+          hostPath:
+            path: {{ $manifest.path }}
+        {{- end }}
+        {{- end }}
+        {{- if and .Values.haulerJobs.local .Values.haulerJobs.local.store }}
+        - name: store-data
+          hostPath:
+            path: {{ .Values.haulerJobs.local.store }}
+        {{- end }}
         - name: hauler-data
           persistentVolumeClaim:
             claimName: hauler-data

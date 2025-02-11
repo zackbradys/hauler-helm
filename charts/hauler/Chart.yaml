@@ -1,7 +1,21 @@
 apiVersion: v2
 name: hauler-helm
+version: 2.0.0
+appVersion: 1.2.1
+
+type: application
 description: Hauler Helm Chart - Airgap Swiss Army Knife
 icon: https://raw.githubusercontent.com/hauler-dev/hauler/main/static/rgs-hauler-logo-icon.svg
-type: application
-version: 1.2.1
-appVersion: 1.2.1
+
+home: https://github.com/hauler-dev
+sources:
+  - https://github.com/hauler-dev/hauler
+  - https://github.com/hauler-dev/hauler-helm
+
+maintainers:
+  - name: Rancher Government
+    email: hauler@ranchergovernment.com
+    url: https://ranchergovernment.com
+
+annotations:
+  classification: UNCLASSIFIED

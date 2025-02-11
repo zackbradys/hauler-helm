@@ -23,7 +23,7 @@ hauler:
     pvc:
       accessModes: ReadWriteMany
       # storageClass: longhorn # optional... will use default storage class
-      storageRequest: 48Gi # recommended size of 3x the artifact(s)
+      storageRequest: 48Gi  # recommended size of 3x the artifact(s)
 
   debug:
     enabled: true
@@ -38,28 +38,42 @@ hauler:
 # Docs: https://docs.hauler.dev/docs/introduction/quickstart
 
 haulerJobs:
-  hauls:
-    enabled: true
-    artifacts:
-      - path: https://raw.githubusercontent.com/hauler-dev/hauler/main/testdata/haul.tar.zst
-        name: haul.tar.zst
-      # - path: /path/to/haul.tar.zst
+  image:
+    repository: hauler/hauler-debug
+    tag: 1.2.0
+  imagePullPolicy: Always
+  remote: # remote refers to hauls/manifests accessible via URLs
+    hauls:
+      # - path: https://raw.githubusercontent.com/hauler-dev/hauler/main/testdata/haul.tar.zst
+      #   name: remhaul.tar.zst
+      # - path: https://path/to/additional-hauls.tar.zst
+      #   name: additional-hauls.tar.zst
+    manifests:
+      # - path: https://raw.githubusercontent.com/hauler-dev/hauler/main/testdata/hauler-manifest.yaml
+      #   name: remhauler-manifest.yaml
+      # - path: https://path/to/additional-manifests.yaml
+      #   name: additional-manifests.yaml
+  local: # local refers to hauls/manifests accessible via the local filesystem/filepaths/filenames
+    hauls:
+      # - path: /usr/local/testdata/
       #   name: haul.tar.zst
-
-  manifests:
-    enabled: true
-    artifacts:
-      - path: https://raw.githubusercontent.com/hauler-dev/hauler/main/testdata/hauler-manifest.yaml
-        name: hauler-manifest.yaml
-      # - path: /path/to/manifest.yaml
-      #   name: manifest.yaml
+      # - path: /path/to/directory/
+      #   name: additional-hauls.tar.zst
+    manifests:
+      # - path: /usr/local/testdata/
+      #   name: hauler-manifest.yaml
+      # - path: /path/to/directory/
+      #   name: additional-manifests.yaml
+  # store refers to a previously created hauler store directory and structure
+  # only the filepath is acceptable argument
+  store: # /path/to/previously/created/hauler/store/directory/
 
 # Helm Chart Values for the Hauler Fileserver
 # Docs: https://docs.hauler.dev/docs/hauler-usage/store/serve/fileserver
 
 haulerFileserver:
   enabled: true
-  port: 8080 # default port for the fileserver
+  port: 8080  # default port for the fileserver
   replicas: 1
 
   ingress:
@@ -71,23 +85,23 @@ haulerFileserver:
     hostname: fileserver.ranchers.io
     tls:
       enabled: false
-      source: secret # only supported source
-      secretName: tls-certs # must be created outside of this chart
+      source: secret         # only supported source
+      secretName: tls-certs  # must be created outside of this chart
 
   service:
     enabled: true
     type: ClusterIP
     ports:
       protocol: TCP
-      port: 8080 # default port for the fileserver
-      targetPort: 8080 # default port for the fileserver
+      port: 8080        # default port for the fileserver
+      targetPort: 8080  # default port for the fileserver
 
 # Helm Chart Values for the Hauler Registry
 # Docs: https://docs.hauler.dev/docs/hauler-usage/store/serve/registry
 
 haulerRegistry:
   enabled: true
-  port: 5000 # default port for the registry
+  port: 5000  # default port for the registry
   replicas: 1
 
   ingress:
@@ -99,13 +113,13 @@ haulerRegistry:
     hostname: registry.ranchers.io
     tls:
       enabled: false
-      source: secret # only supported source
-      secretName: tls-certs # must be created outside of this chart
+      source: secret         # only supported source
+      secretName: tls-certs  # must be created outside of this chart
 
   service:
     enabled: true
     type: ClusterIP
     ports:
       protocol: TCP
-      port: 5000 # default port for the registry
-      targetPort: 5000 # default port for the registry
+      port: 5000        # default port for the registry
+      targetPort: 5000  # default port for the registry
