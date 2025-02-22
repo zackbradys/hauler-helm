@@ -62,7 +62,7 @@ spec:
             httpGet:
               path: /
               port: {{ .Values.haulerRegistry.port }}
-            initialDelaySeconds: 5
+            initialDelaySeconds: 10
             periodSeconds: 10
             failureThreshold: 3
           livenessProbe:
@@ -72,6 +72,13 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 15
             failureThreshold: 5
+          startupProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.haulerRegistry.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            failureThreshold: {{ .Values.haulerRegistry.delayStart | default 0 }}
 
       restartPolicy: Always
       serviceAccountName: hauler-service-account

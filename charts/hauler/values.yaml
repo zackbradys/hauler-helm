@@ -75,7 +75,7 @@ haulerFileserver:
   enabled: true
   port: 8080  # default port for the fileserver
   replicas: 1
-
+  delayStart: 0  # how long for health checks to wait to start checking, 15-second intervals
   ingress:
     enabled: true
     # labels:
@@ -103,6 +103,7 @@ haulerRegistry:
   enabled: true
   port: 5000  # default port for the registry
   replicas: 1
+  delayStart: 0  # how long for health checks to wait to start checking, in 15-second intervals
 
   ingress:
     enabled: true

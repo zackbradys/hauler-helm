@@ -3,6 +3,9 @@ name: Lint and Test Workflow
 on:
   workflow_dispatch:
   push:
+  pull_request:
+    branches:
+      - 'main'
 
 jobs:
   test-hauler-helm:
@@ -76,6 +79,22 @@ jobs:
             then
               echo
               echo COUNTER = $COUNTER, registries failed to start
+              for testvalue in $(ls charts/hauler/ci/*-values.yaml)
+              do
+                name=$(basename ${testvalue}| rev | cut -c13- | rev)
+                namespace=hauler-${name}
+                echo Logs from NAMESPACE = $namespace
+                for container in hauler-fetch hauler-load
+                do
+                echo $container container in hauler-loader job logs:
+                kubectl logs --tail=100 -n $namespace -l=batch.kubernetes.io/job-name=hauler-loader -c $container
+                done
+                for container in hauler-fileserver hauler-registry
+                do
+                  echo $container pod logs:
+                  kubectl logs --tail=100 -n $namespace -lapp=${container} -c ${container}
+                done
+              done
               exit 1
             fi
           done
@@ -83,11 +102,28 @@ jobs:
           echo -n "waiting for fileservers to start"
           while kubectl get po -A -lapp=hauler-fileserver -ojsonpath='{.items[*].status.containerStatuses[*].ready}' | grep -q "false"
           do
-            echo -n . ; sleep 1
+            echo -n . ; sleep 1;
             COUNTER=$((COUNTER+1))
             if [ $COUNTER -gt $MAXWAIT ]
             then
               echo
+              echo COUNTER = $COUNTER, registries failed to start
+              for testvalue in $(ls charts/hauler/ci/*-values.yaml)
+              do
+                name=$(basename ${testvalue}| rev | cut -c13- | rev)
+                namespace=hauler-${name}
+                echo Logs from NAMESPACE = $namespace
+                for container in hauler-fetch hauler-load
+                do
+                echo $container container in hauler-loader job logs:
+                kubectl logs --tail=100 -n $namespace -l=batch.kubernetes.io/job-name=hauler-loader -c ${container}  || echo No logs for $namespace / $container
+                done
+                for container in hauler-fileserver hauler-registry
+                do
+                  echo $container pod logs:
+                  kubectl logs --tail=100 -n $namespace -lapp=${container} -c ${container}  || echo No logs for $namespace / $container
+                done
+              done
               echo COUNTER = $COUNTER, fileservers failed to start
               exit 1
             fi
@@ -128,6 +164,23 @@ jobs:
           if ! [ -z "$failures" ]
           then
             echo there were failures, investigate these tests: $failures
+            echo
+            for testvalue in $(ls charts/hauler/ci/*-values.yaml)
+            do
+              name=$(basename ${testvalue}| rev | cut -c13- | rev)
+              namespace=hauler-${name}
+              echo Logs from NAMESPACE = $namespace
+              for container in hauler-fetch hauler-load
+              do
+              echo $container container in hauler-loader job logs:
+              kubectl logs --tail=100 -n $namespace -l=batch.kubernetes.io/job-name=hauler-loader -c ${container} || echo No logs for $namespace / $container
+              done
+              for container in hauler-fileserver hauler-registry
+              do
+                echo $container pod logs:
+                kubectl logs --tail=100 -n $namespace -lapp=${container} -c ${container}  || echo No logs for $namespace / $container
+              done
+            done
             exit 1
           else
             echo all tests passed: $successes
