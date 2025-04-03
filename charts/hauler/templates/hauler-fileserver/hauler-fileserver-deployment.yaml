@@ -15,12 +15,19 @@ metadata:
     {{- end }}
 spec:
   replicas: {{ .Values.haulerFileserver.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
   selector:
     matchLabels:
       app: hauler-fileserver
       {{- include "hauler.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      annotations:
+        autorollout: {{ randAlphaNum 5 | quote }}
       labels:
         app: hauler-fileserver
         {{- include "hauler.selectorLabels" . | nindent 8 }}

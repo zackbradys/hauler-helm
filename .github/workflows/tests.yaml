@@ -43,16 +43,6 @@ jobs:
           sleep 1
           done
 
-      - name: Install Test Cases
-        run: |
-          for testvalue in $(ls charts/hauler/ci/*-values.yaml)
-          do
-            name=$(basename ${testvalue}| rev | cut -c13- | rev)
-            namespace=hauler-${name}
-            echo $name - $testvalue
-            helm install $name charts/hauler --namespace ${namespace} --values ${testvalue} --create-namespace
-          done
-
       - name: Fetch and Prepare Test Files
         run: |
           mkdir -pv /tmp/tests/store
@@ -65,6 +55,16 @@ jobs:
           echo "Create local store"
           hauler store -s /tmp/tests/store load --filename /tmp/tests/local-haul.tar.zst
           echo "Store built in /tmp/tests/store"
+
+      - name: Install Test Cases
+        run: |
+          for testvalue in $(ls charts/hauler/ci/*-values.yaml)
+          do
+            name=$(basename ${testvalue}| rev | cut -c13- | rev)
+            namespace=hauler-${name}
+            echo $name - $testvalue
+            helm install $name charts/hauler --namespace ${namespace} --values ${testvalue} --create-namespace
+          done
 
       - name: Wait for Resources
         run: |
