@@ -19,6 +19,10 @@ spec:
   template:
     spec:
       {{- if or (and .Values.haulerJobs.local .Values.haulerJobs.local.store) (and .Values.haulerJobs.local .Values.haulerJobs.local.hauls (gt (len .Values.haulerJobs.local.hauls) 0)) (and .Values.haulerJobs.local .Values.haulerJobs.local.manifests (gt (len .Values.haulerJobs.local.manifests) 0)) }}
+      {{- if .Values.haulerJobs.localNode }}
+      nodeSelector:
+        kubernetes.io/hostname: {{ .Values.haulerJobs.localNode }}
+      {{- end }}
       initContainers:
         - name: hauler-fetch
           image: {{ .Values.haulerJobs.image.repository }}:{{ .Values.haulerJobs.image.tag }}
@@ -107,10 +111,6 @@ spec:
             {{- if or (and .Values.haulerJobs.remote .Values.haulerJobs.remote.manifests (gt (len .Values.haulerJobs.remote.manifests) 0)) (and .Values.haulerJobs.local .Values.haulerJobs.local.manifests (gt (len .Values.haulerJobs.local.manifests) 0)) }}
             - name: manifest-data
               mountPath: /manifests
-            {{- end }}
-            {{- if and .Values.haulerJobs.local .Values.haulerJobs.local.store }}
-            - name: store-data
-              mountPath: /local-store
             {{- end }}
             - name: hauler-data
               mountPath: /store

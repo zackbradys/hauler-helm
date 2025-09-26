@@ -58,12 +58,15 @@ jobs:
 
       - name: Install Test Cases
         run: |
+          # should only be one kube node in testing - get its name
+          export NODENAME=$(kubectl get nodes | tail -1 | awk '{print $1}')
+          echo "Running test cases using haulerJobs.localNode=$NODENAME"
           for testvalue in $(ls charts/hauler/ci/*-values.yaml)
           do
             name=$(basename ${testvalue}| rev | cut -c13- | rev)
             namespace=hauler-${name}
             echo $name - $testvalue
-            helm install $name charts/hauler --namespace ${namespace} --values ${testvalue} --create-namespace
+            helm install $name charts/hauler --namespace ${namespace} --values ${testvalue} --create-namespace --set haulerJobs.localNode=$NODENAME
           done
 
       - name: Wait for Resources
