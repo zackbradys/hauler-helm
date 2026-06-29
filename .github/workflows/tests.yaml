@@ -12,26 +12,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6.0.1
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Set Up Helm
-        uses: azure/setup-helm@v4.3.1
+        uses: azure/setup-helm@v5
         with:
-          version: v3.17.1
+          version: v3.21.2
 
       - name: Set Up Python
-        uses: actions/setup-python@v6.1.0
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           check-latest: true
 
       - name: Set Up Helm Chart Testing
-        uses: helm/chart-testing-action@v2.8.0
+        uses: helm/chart-testing-action@v2
 
       - name: Set Up Hauler
-        run: curl -sfL https://get.hauler.dev | bash
+        run: curl -sfL https://get.hauler.dev | HAULER_VERSION=2.0.0 bash
 
       - name: Run Chart Testing
         run: ct lint --target-branch ${{ github.event.repository.default_branch }} --all --config ct.yaml
@@ -67,7 +67,7 @@ jobs:
             name=$(basename ${testvalue}| rev | cut -c13- | rev)
             namespace=hauler-${name}
             echo $name - $testvalue
-            helm install $name charts/hauler --namespace ${namespace} --values ${testvalue} --create-namespace --set haulerJobs.localNode=$NODENAME
+            helm install $name charts/hauler --namespace ${namespace} --values ${testvalue} --create-namespace --set haulerJobs.localNode=$NODENAME --timeout 10m
           done
 
       - name: Wait for Resources
